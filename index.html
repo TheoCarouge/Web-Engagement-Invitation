@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Lou-Anne & Théo — Fiançailles</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Great+Vibes&family=Playfair+Display:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green:    #2D6B52;
+      --green-dk: #1E4D3C;
+      --seal:     #A83868;
+      --seal-hi:  #CC5585;
+      --cream:    #EDE0C8;
+      --pink:     #EEC4CB;
+      --white:    #FDFAF5;
+      --text:     #2E2420;
+    }
+
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      background: var(--pink); /* safety net — matches first content section */
+    }
+
+    /* ══════════════════════════════════════
+       STAGE — fixed, covers full viewport
+       Hidden by JS once content is in position
+    ══════════════════════════════════════ */
+    #stage {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      bottom: -3px; /* overlap content slightly — prevents 1px seam on scroll */
+      z-index: 10;
+      overflow: hidden;
+    }
+
+    /* Layered backgrounds inside stage */
+    .bg-layer {
+      position: absolute; inset: 0;
+      pointer-events: none;
+      will-change: opacity;
+    }
+    #bg-green { background: var(--green); }
+    #bg-cream {
+      background:
+        radial-gradient(ellipse 140% 60% at 72% 18%, #f0e6cc 0%, transparent 52%),
+        radial-gradient(ellipse 80% 90% at 12% 85%, #ddd0b0 0%, transparent 48%),
+        #e8d9be;
+      opacity: 0;
+    }
+    /* Pink layer — fades in at the very end so last frame = first content section */
+    #bg-pink {
+      background: var(--pink);
+      opacity: 0;
+    }
+
+    /* Transition fade — thin pink strip that follows the stage bottom,
+       covers any sub-pixel rendering seam between stage and content. */
+    #transition-fade {
+      position: fixed;
+      bottom: -4px; left: 0; right: 0;
+      height: 12px;
+      background: var(--pink);
+      pointer-events: none;
+      z-index: 11;
+      opacity: 0;
+      will-change: opacity, transform;
+    }
+
+    /* ══════════════════════════════════════
+       SCROLL HINT
+    ══════════════════════════════════════ */
+    #scroll-hint {
+      position: absolute;
+      bottom: 28px; left: 50%;
+      transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      z-index: 20; pointer-events: all; cursor: pointer;
+      transition: opacity .2s;
+    }
+    #scroll-hint:hover { opacity: .75; }
+    .hint-label {
+      font-size: .78rem; letter-spacing: .16em;
+      text-transform: uppercase; color: rgba(255,255,255,.7);
+      text-align: center; white-space: nowrap;
+      font-weight: 300;
+    }
+    .hint-line {
+      width: 1px; height: 36px;
+      background: rgba(255,255,255,.18);
+      position: relative; overflow: hidden;
+    }
+    .hint-line::after {
+      content: '';
+      position: absolute; top: -100%; left: 0;
+      width: 100%; height: 100%;
+      background: linear-gradient(to bottom, transparent, rgba(255,255,255,.85));
+      animation: trickle 1.8s ease-in-out infinite;
+    }
+    .hint-arrow {
+      font-size: 1.35rem; color: rgba(255,255,255,.65);
+      animation: bounce 1.8s ease-in-out infinite;
+      line-height: 1;
+    }
+    @keyframes trickle { 0% { top: -100%; } 100% { top: 100%; } }
+    @keyframes bounce  { 0%,100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
+
+    /* ══════════════════════════════════════
+       HINT TEXT
+    ══════════════════════════════════════ */
+    #hint-text {
+      position: absolute;
+      left: 50%; top: 50%;
+      transform: translate(-50%, calc(-50% - min(110px, 23vh) - 28px));
+      width: min(340px, 88vw);
+      text-align: center;
+      color: rgba(255,255,255,.82);
+      font-size: clamp(.78rem, 2.6vw, .96rem);
+      font-weight: 300; letter-spacing: .10em;
+      line-height: 1.55;
+      z-index: 15; pointer-events: none;
+      opacity: 0; /* initial state — apply(0) sets to 1 */
+    }
+
+    /* ══════════════════════════════════════
+       ENVELOPE
+    ══════════════════════════════════════ */
+    #env-wrap {
+      position: absolute;
+      left: 50%; top: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 12;
+      will-change: transform, opacity;
+      opacity: 0; /* initial state — apply(0) sets to 1 */
+    }
+
+    .env {
+      position: relative;
+      width: min(320px, 80vw);
+      height: min(188px, 40vh); /* landscape ~1.7:1 */
+    }
+
+    .env-body {
+      position: absolute; inset: 0;
+      border-radius: 4px;
+      background: linear-gradient(158deg, #326754 0%, #275646 50%, #1f4438 100%);
+      box-shadow:
+        0 20px 70px rgba(0,0,0,.5),
+        0 6px 22px rgba(0,0,0,.25),
+        inset 0 0 0 1px rgba(255,255,255,.055);
+      overflow: hidden;
+    }
+    /* X fold lines */
+    .env-body::before {
+      content: ''; position: absolute; inset: 0;
+      background:
+        linear-gradient(to bottom right, transparent calc(50% - .6px), rgba(255,255,255,.07) 50%, transparent calc(50% + .6px)),
+        linear-gradient(to bottom left,  transparent calc(50% - .6px), rgba(255,255,255,.07) 50%, transparent calc(50% + .6px));
+    }
+
+    /* Inner card */
+    .env-card {
+      position: absolute; left: 6%; right: 6%; top: 7%; bottom: 7%;
+      background: linear-gradient(170deg, var(--white) 0%, #f0e6d2 100%);
+      border-radius: 2px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 12px; padding: 20px 16px;
+      transform: translateY(78%); opacity: 0;
+      z-index: 2; will-change: transform, opacity;
+    }
+    .card-initials {
+      font-family: 'Great Vibes', cursive;
+      font-size: clamp(1.6rem, 5vw, 2.4rem); color: var(--green); text-align: center;
+      line-height: 1;
+    }
+    .card-rule {
+      width: 48%; height: 1px;
+      background: linear-gradient(to right, transparent, var(--seal), transparent);
+    }
+    .card-sub {
+      font-size: clamp(.62rem, 1.8vw, .74rem); letter-spacing: .15em;
+      text-transform: uppercase; color: #8a7a65; text-align: center;
+    }
+
+    /* Flap */
+    .env-flap {
+      position: absolute; top: 0; left: 0; right: 0; height: 52%;
+      clip-path: polygon(0 0, 100% 0, 50% 88%);
+      background: linear-gradient(168deg, #2d6455 0%, #245148 50%, #1c4034 100%);
+      border-radius: 4px 4px 0 0;
+      transform-origin: top center;
+      transform: perspective(900px) rotateX(0deg);
+      z-index: 8; will-change: transform, opacity;
+    }
+
+    /* Wax seal */
+    .seal {
+      position: absolute; left: 50%; top: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 9;
+      width: min(72px, 18.5vw); height: min(72px, 18.5vw);
+      border-radius: 50%;
+      background: radial-gradient(circle at 33% 28%, var(--seal-hi) 0%, var(--seal) 48%, #6d1840 100%);
+      box-shadow:
+        0 6px 28px rgba(168,56,104,.6), 0 2px 8px rgba(0,0,0,.35),
+        inset 0 1.5px 3px rgba(255,255,255,.28), inset 0 -2px 5px rgba(0,0,0,.22);
+      display: flex; align-items: center; justify-content: center;
+      will-change: transform, opacity;
+      animation: sealPulse 3.5s ease-in-out infinite;
+    }
+    .seal::before { content:''; position:absolute; inset:5px; border-radius:50%; border:1px solid rgba(255,255,255,.2); }
+    .seal::after  { content:''; position:absolute; inset:9px;  border-radius:50%; border:.5px solid rgba(255,255,255,.1); }
+    .seal-txt {
+      font-family: 'Great Vibes', cursive;
+      font-size: clamp(1.1rem, 3.6vw, 1.45rem); color: rgba(255,255,255,.95);
+      text-shadow: 0 1px 4px rgba(0,0,0,.3); position: relative; z-index: 1;
+    }
+    @keyframes sealPulse {
+      0%,100% { box-shadow: 0 6px 28px rgba(168,56,104,.6), 0 2px 8px rgba(0,0,0,.35), inset 0 1.5px 3px rgba(255,255,255,.28), inset 0 -2px 5px rgba(0,0,0,.22); }
+      50%      { box-shadow: 0 9px 40px rgba(168,56,104,.82), 0 3px 12px rgba(0,0,0,.3), inset 0 1.5px 3px rgba(255,255,255,.28), inset 0 -2px 5px rgba(0,0,0,.22); }
+    }
+
+    /* ══════════════════════════════════════
+       TITLE OVERLAY
+    ══════════════════════════════════════ */
+    #s2 {
+      position: absolute; inset: 0;
+      padding: 52px 28px; z-index: 6;
+      opacity: 0; pointer-events: none; will-change: opacity;
+    }
+    .s2-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(1.5rem, 5.5vw, 2.1rem);
+      font-weight: 400; color: var(--text); line-height: 1.3; max-width: 270px;
+    }
+    .s2-title em {
+      display: block; font-style: italic;
+      font-family: 'Great Vibes', cursive;
+      font-size: 1.45em; color: var(--green); margin-top: 2px;
+    }
+
+    /* ══════════════════════════════════════
+       PROGRESS BAR
+    ══════════════════════════════════════ */
+    #prog-wrap {
+      position: fixed; right: 18px; top: 50%;
+      transform: translateY(-50%);
+      width: 2px; height: 64px;
+      background: rgba(255,255,255,.14);
+      border-radius: 2px; z-index: 100; overflow: hidden;
+      pointer-events: none;
+    }
+    #prog-fill {
+      width: 100%; height: 0%;
+      background: rgba(255,255,255,.65); border-radius: 2px;
+    }
+
+    /* ══════════════════════════════════════
+       SPACER — height set by JS to exactly
+       match animScrollEnd() in pixels
+    ══════════════════════════════════════ */
+    #spacer { pointer-events: none; }
+
+    /* ══════════════════════════════════════
+       CONTENT
+    ══════════════════════════════════════ */
+    #content { position: relative; z-index: 1; }
+
+    .torn { display: block; width: 100%; line-height: 0; overflow: hidden; }
+
+    .sec-pink  { background: var(--pink);  padding: 22px 32px 0; text-align: center; }
+    .sec-white { background: var(--white); padding: 52px 32px 64px; text-align: center; }
+    .sec-white .c-body { max-width: 520px; margin-left: auto; margin-right: auto; text-align: left; }
+    .sec-green { background: var(--green); padding: 52px 32px 70px; color: #fff; text-align: center; }
+    .detail-wrap { max-width: 460px; margin: 0 auto; text-align: left; }
+
+    /* Google Maps */
+    .map-frame { width: 100%; height: 220px; border: 0; border-radius: 14px;
+                 margin-top: 14px; display: block;
+                 box-shadow: 0 4px 20px rgba(0,0,0,.25); }
+
+    .fade-up {
+      opacity: 0; transform: translateY(40px);
+      transition: opacity .95s cubic-bezier(0.16, 1, 0.3, 1),
+                  transform .95s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .fade-up.visible { opacity: 1; transform: translateY(0); }
+
+    .c-label { font-size: .7rem; letter-spacing: .22em; text-transform: uppercase; color: var(--seal); margin-bottom: 12px; }
+    .c-script { font-family: 'Great Vibes', cursive; font-size: clamp(2.8rem, 9vw, 4.2rem); color: var(--green); line-height: 1.1; margin-bottom: 20px; }
+    .c-body   { font-size: clamp(.97rem, 3vw, 1.1rem); font-weight: 300; color: #4a3e30; line-height: 1.88; }
+    .c-date   { font-family: 'Playfair Display', serif; font-size: clamp(1.3rem, 4.5vw, 1.6rem); color: var(--green-dk); margin: 26px 0 10px; font-style: italic; }
+    .c-script-wh { font-family: 'Great Vibes', cursive; font-size: clamp(2.3rem, 7.5vw, 3.5rem); color: rgba(255,255,255,.88); margin-bottom: 30px; }
+    .detail   { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 22px; }
+    .d-icon   { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+    .detail h4 { font-size: .68rem; letter-spacing: .16em; text-transform: uppercase; color: rgba(255,255,255,.48); margin-bottom: 3px; font-weight: 400; }
+    .detail p  { font-size: clamp(.94rem, 2.8vw, 1.06rem); color: rgba(255,255,255,.88); line-height: 1.55; font-weight: 300; }
+    .pink-script { font-family: 'Great Vibes', cursive; font-size: clamp(2rem, 6.5vw, 3rem); color: #8a2f55; margin-bottom: 10px; }
+    .pink-sub    { font-size: clamp(.76rem, 2.4vw, .86rem); letter-spacing: .14em; text-transform: uppercase; color: rgba(138,47,85,.6); margin-bottom: 6px; }
+    /* Surprises section */
+    .sec-surprise { background: var(--white); padding: 60px 32px 64px; }
+    .sec-surprise .c-label { color: var(--seal); margin-bottom: 6px; }
+    .surp-script { font-family: 'Great Vibes', cursive; font-size: clamp(2.4rem, 7.5vw, 3.4rem); color: var(--seal); line-height: 1.1; margin-bottom: 32px; }
+    .surp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 480px; margin: 0 auto; }
+    @media (max-width: 400px) { .surp-grid { grid-template-columns: 1fr; } }
+    .surp-card {
+      background: linear-gradient(145deg, #fdf6f8 0%, #f8f0f2 100%);
+      border: 1px solid rgba(168,56,104,.12);
+      border-radius: 14px; padding: 22px 18px; text-align: center;
+    }
+    .surp-icon { font-size: 2rem; display: block; margin-bottom: 10px; }
+    .surp-title { font-family: 'Playfair Display', serif; font-size: clamp(.95rem, 2.8vw, 1.08rem); color: var(--green-dk); margin-bottom: 6px; font-style: italic; }
+    .surp-desc  { font-size: clamp(.82rem, 2.4vw, .9rem); color: #7a6055; line-height: 1.55; font-weight: 300; }
+    .surp-note  { font-size: clamp(.78rem, 2.2vw, .86rem); color: rgba(138,47,85,.55); margin-top: 26px; font-style: italic; text-align: center; }
+
+    /* Download button */
+    .dl-wrap { text-align: center; padding: 40px 32px 8px; background: var(--white); display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    .dl-btn {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: var(--green); color: #fff;
+      border: none; border-radius: 50px;
+      padding: 14px 28px;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(.95rem, 2.8vw, 1.1rem);
+      letter-spacing: .06em; cursor: pointer;
+      box-shadow: 0 6px 24px rgba(45,107,82,.35);
+      transition: background .25s, transform .2s, box-shadow .25s;
+      text-decoration: none;
+    }
+    .dl-btn:hover { background: var(--green-dk); transform: translateY(-2px); box-shadow: 0 10px 32px rgba(45,107,82,.45); }
+    .dl-btn:active { transform: translateY(0); }
+    .dl-btn-icon { font-size: 1.2rem; }
+
+    /* ── Print styles ── */
+    @media print {
+      #stage, #spacer, #prog-wrap, .dl-wrap, .torn { display: none !important; }
+      #content { display: block !important; }
+      body { background: #fff !important; }
+      .sec-pink, .sec-white, .sec-green, .sec-surprise, .footer { page-break-inside: avoid; }
+      .fade-up { opacity: 1 !important; transform: none !important; }
+      .sec-green { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .footer    { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+
+    .footer     { background: var(--green-dk); padding: 34px 32px; text-align: center; }
+    .footer-sig  { font-family: 'Great Vibes', cursive; font-size: clamp(2.2rem, 7vw, 3rem); color: rgba(255,255,255,.6); }
+    .footer-love { font-size: .68rem; letter-spacing: .2em; text-transform: uppercase; color: rgba(255,255,255,.3); margin-top: 8px; }
+  </style>
+</head>
+<body>
+
+  <!-- Transition fade: fixed overlay that bridges stage → content, outside stage so it isn't clipped -->
+  <div id="transition-fade"></div>
+
+  <!-- Fixed stage (always on screen during animation) -->
+  <div id="stage">
+    <div class="bg-layer" id="bg-green"></div>
+    <div class="bg-layer" id="bg-cream"></div>
+    <div class="bg-layer" id="bg-pink"></div>
+
+    <div id="hint-text">Scrollez vers le bas pour découvrir notre carton de fiançailles</div>
+
+    <div id="env-wrap">
+      <div class="env">
+        <div class="env-body"></div>
+        <div class="env-card"  id="env-card">
+          <p class="card-initials">Lou-Anne &amp; Théo</p>
+          <div class="card-rule"></div>
+          <p class="card-sub">11 Juillet 2026 · Saint-Georges-d'Orques</p>
+        </div>
+        <div class="env-flap" id="env-flap"></div>
+        <div class="seal"     id="seal"><span class="seal-txt">L&amp;T</span></div>
+      </div>
+    </div>
+
+    <div id="s2">
+      <p class="s2-title">Scrollez vers le bas pour découvrir<em>notre carton de fiançailles</em></p>
+    </div>
+
+    <div id="scroll-hint" role="button" tabindex="0" title="Cliquez pour défiler vers le bas">
+      <span class="hint-label">Scrollez vers le bas</span>
+      <div class="hint-line"></div>
+      <span class="hint-arrow">↓</span>
+    </div>
+  </div>
+
+  <!-- Spacer: height set by JS = exactly animScrollEnd() px -->
+  <div id="spacer"></div>
+
+  <!-- Content: starts at exactly scrollY = animScrollEnd() -->
+  <div id="content">
+
+    <div class="sec-pink">
+      <p class="pink-script fade-up">Lou-Anne &amp; Théo</p>
+      <p class="pink-sub    fade-up">Nos Fiançailles</p>
+    </div>
+
+    <svg class="torn" viewBox="0 0 400 60" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="400" height="60" fill="#FDFAF5"/>
+      <path d="M0,0 C7,17 18,5 32,19 C46,33 57,9 74,21 C91,33 103,11 124,23 C145,35 156,13 178,24 C200,35 212,12 236,25 C260,38 272,14 296,27 C320,40 333,15 356,28 C379,41 390,20 400,25 L400,0 Z" fill="#EEC4CB"/>
+    </svg>
+
+    <div class="sec-white">
+      <p class="c-label fade-up">Fiançailles</p>
+      <h1 class="c-script fade-up">Lou-Anne &amp; Théo</h1>
+      <p class="c-body fade-up">C'est avec un grand plaisir que nous vous invitons à nos fiançailles — la première étape avant le grand jour. 🌸</p>
+      <p class="c-body fade-up">Pour cette soirée si spéciale, le rose et le vert sauge sont à l'honneur. Pas de couleur imposée, mais une petite tenue classe est exigée (pour les photos 📸).</p>
+      <p class="c-body fade-up">Nous serons une trentaine, un petit comité avec la famille et les amis les plus proches.</p>
+      <p class="c-body fade-up" style="margin-top:24px; font-style:italic; color:#8a6a50;">Continuez à défiler vers le bas pour découvrir tous les détails. ↓</p>
+    </div>
+
+    <svg class="torn" viewBox="0 0 400 60" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="400" height="60" fill="#2D6B52"/>
+      <path d="M0,0 C9,20 22,6 38,22 C54,38 68,11 88,24 C108,37 120,13 145,26 C170,39 183,15 208,28 C233,41 246,16 270,29 C294,42 308,17 332,31 C356,45 368,19 392,32 L400,33 L400,0 Z" fill="#FDFAF5"/>
+    </svg>
+
+    <div class="sec-green">
+      <p class="c-script-wh fade-up">Les détails</p>
+      <div class="detail-wrap">
+        <div class="detail fade-up"><span class="d-icon">📅</span><div><h4>Date</h4><p>Samedi 11 Juillet 2026</p></div></div>
+        <div class="detail fade-up"><span class="d-icon">🕐</span><div><h4>Heure</h4><p>20h00</p></div></div>
+        <div class="detail fade-up"><span class="d-icon">📍</span><div><h4>Lieu</h4><p>Salle Thomas Jefferson<br>2 rue des Cades — ZAE du Mijoulan<br>34680 Saint-Georges-d'Orques</p>
+          <iframe class="map-frame fade-up"
+            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2887.9236434967574!2d3.7649120766292596!3d43.62894815399841!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x12b6acebdcdfeb9f%3A0x6ffeaf471dda9464!2s2%20Rue%20des%20Cades%2C%2034680%20Saint-Georges-d&#39;Orques%2C%20France!5e0!3m2!1sfr!2sus!4v1777807489454!5m2!1sfr!2sus"
+            allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        </div></div>
+        <div class="detail fade-up"><span class="d-icon">📲</span><div><h4>Confirmez votre présence</h4><p>Merci de nous envoyer un petit message<br>avant le <strong>1er juin 2026</strong><br>au <strong>06 28 34 17 57</strong></p></div></div>
+      </div>
+    </div>
+
+    <!-- Surprises section -->
+    <svg class="torn" viewBox="0 0 400 60" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="400" height="60" fill="#FDFAF5"/>
+      <path d="M0,0 C8,18 20,7 36,20 C52,33 65,10 85,23 C105,36 117,12 140,25 C163,38 177,14 202,27 C227,40 240,16 264,29 C288,42 301,17 325,30 C349,43 362,19 386,32 L400,33 L400,0 Z" fill="#2D6B52"/>
+    </svg>
+
+    <div class="sec-surprise">
+      <p class="c-label fade-up">Avant-première</p>
+      <p class="surp-script fade-up">Les petites surprises</p>
+      <div class="surp-grid">
+        <div class="surp-card fade-up">
+          <span class="surp-icon">🍹</span>
+          <p class="surp-title">Bar à Cocktails des Fiancés</p>
+          <p class="surp-desc">Des créations signatures pour l'occasion — à vos verres !</p>
+        </div>
+        <div class="surp-card fade-up">
+          <span class="surp-icon">🎵</span>
+          <p class="surp-title">Soirée musicale</p>
+          <p class="surp-desc">Une playlist soigneusement choisie pour danser toute la nuit</p>
+        </div>
+        <div class="surp-card fade-up">
+          <span class="surp-icon">💌</span>
+          <p class="surp-title">Connaissez-vous les Fiancés ?</p>
+          <p class="surp-desc">Quiz, anecdotes & révélations — saurez-vous tout sur Lou-Anne & Théo ?</p>
+        </div>
+        <div class="surp-card fade-up">
+          <span class="surp-icon">🏅</span>
+          <p class="surp-title">Les Olympiades des Fiancés</p>
+          <p class="surp-desc">Épreuves, défis & esprit de compétition — que le meilleur gagne !</p>
+        </div>
+      </div>
+      <p class="surp-note fade-up">Et bien d'autres surprises à découvrir le soir venu… ✨</p>
+    </div>
+
+    <!-- Download -->
+    <div class="dl-wrap">
+      <a class="dl-btn" href="Invitation_fiancailles.png" download>
+        <span class="dl-btn-icon">⬇️</span>
+        Téléchargez l'invitation
+      </a>
+    </div>
+
+    <div class="footer">
+      <p class="footer-sig  fade-up">Lou-Anne &amp; Théo</p>
+      <p class="footer-love fade-up">Avec tout notre amour</p>
+    </div>
+  </div>
+
+  <div id="prog-wrap"><div id="prog-fill"></div></div>
+
+  <script>
+    /* ── Elements ── */
+    const stage      = document.getElementById('stage');
+    const bgGreen    = document.getElementById('bg-green');
+    const bgCream    = document.getElementById('bg-cream');
+    const bgPink     = document.getElementById('bg-pink');
+    const transFade  = document.getElementById('transition-fade');
+    const hintTxt    = document.getElementById('hint-text');
+    const scrollH = document.getElementById('scroll-hint');
+    const envWrap = document.getElementById('env-wrap');
+    const flap    = document.getElementById('env-flap');
+    const sealEl  = document.getElementById('seal');
+    const card    = document.getElementById('env-card');
+    const s2      = document.getElementById('s2');
+    const fill    = document.getElementById('prog-fill');
+    const spacer  = document.getElementById('spacer');
+
+    /* ── Animation distance: 2.2× viewport height ──
+       Spacer is set to this exact pixel value so that
+       when scrollY === animEnd, content is at viewport top. */
+    const FACTOR = 2.2;
+    function animEnd() { return Math.round(FACTOR * window.innerHeight); }
+
+    /* Spacer = animation distance + 1 viewport height.
+       The extra vh gives the stage room to scroll off-screen
+       while the content rises naturally from below. */
+    /* Slide starts at 82% of the animation — before the blank pink phase.
+       Content appears right below the stage (SLIDE_RATIO = 1.0 for perfect seam). */
+    const SLIDE_AT = 0.82;
+    function slideStartY() { return Math.round(animEnd() * SLIDE_AT); }
+    function syncSpacer() {
+      spacer.style.height = (slideStartY() + window.innerHeight) + 'px';
+    }
+    syncSpacer();
+    window.addEventListener('resize', syncSpacer, { passive: true });
+
+    /* ── Helpers ── */
+    const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
+    const map   = (v, a, b, c, d) => c + (d - c) * clamp((v - a) / (b - a), 0, 1);
+    /* easeInOutCubic — more natural, less mechanical than quad */
+    const ease  = t => t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2;
+
+    /* ── Core animation function ──
+       y       = smoothed scroll (for inner animations — envelope, flap, seal…)
+       yPhysic = raw scroll    (for stage position — never lags behind content) */
+    function apply(y, yPhysic) {
+      const end = animEnd();
+      const p   = clamp(y / end, 0, 1);
+
+      /* Stage: slides up physically, always fully opaque.
+         The bg turns fully pink exactly at SLIDE_AT → same color as content → zero seam. */
+      const slideUp = Math.max(0, yPhysic - slideStartY());
+      if (slideUp > 0) {
+        stage.style.transform     = `translateY(-${Math.round(slideUp)}px)`;
+        stage.style.opacity       = '1';
+        stage.style.pointerEvents = 'none';
+        stage.style.visibility    = slideUp >= window.innerHeight ? 'hidden' : 'visible';
+      } else {
+        stage.style.transform     = 'none';
+        stage.style.opacity       = '1';
+        stage.style.pointerEvents = 'all';
+        stage.style.visibility    = 'visible';
+      }
+      /* Trigger pink section content once stage has started sliding */
+      if (window._applyContent) window._applyContent(slideUp);
+
+      /* Progress bar — hide once animation is done */
+      const progWrap = document.getElementById('prog-wrap');
+      if (progWrap) progWrap.style.opacity = map(p, 0.9, 1.0, 1, 0);
+      fill.style.height     = (p * 100) + '%';
+      fill.style.background = p > .45 ? 'rgba(45,107,82,.75)' : 'rgba(255,255,255,.65)';
+
+      /* Scroll hint fades from the very first movement */
+      scrollH.style.opacity = map(p, 0, .05, 1, 0);
+      hintTxt.style.opacity = map(p, 0, .07, 1, 0);
+
+      /* Seal pulses then slowly crumbles: 0.04 → 0.28
+         Starts fading early so the break feels like a continuous melt */
+      const sT = ease(map(p, .04, .28, 0, 1));
+      sealEl.style.opacity            = 1 - sT;
+      sealEl.style.transform          = `translate(-50%,-50%) scale(${1 - sT*.35}) rotate(${sT*18}deg)`;
+      sealEl.style.animationPlayState = p < .04 ? 'running' : 'paused';
+
+      /* Flap opens and stays open — no fade out */
+      const fT = ease(map(p, .08, .52, 0, 1));
+      flap.style.transform = `perspective(900px) rotateX(${fT * -183}deg)`;
+      flap.style.opacity   = 1;
+
+      /* Backgrounds flow continuously:
+         Green → cream  : 0.22 → 0.55
+         Cream → pink   : 0.63 → SLIDE_AT  ← fully pink exactly when slide starts */
+      const creamT = ease(map(p, .22, .55, 0, 1));
+      const pinkT  = ease(map(p, .63, SLIDE_AT, 0, 1));
+      bgCream.style.opacity = creamT * (1 - pinkT);
+      bgPink.style.opacity  = pinkT;
+
+      /* Card rises from inside envelope: 0.34 → 0.62
+         Starts while flap is still opening — feels like it's being pushed out */
+      const cardT = ease(map(p, .34, .62, 0, 1));
+      card.style.transform = `translateY(${80 - cardT * 86}%)`;
+      card.style.opacity   = map(p, .34, .50, 0, 1);
+
+      /* Title fades in and stays — no fade out */
+      s2.style.opacity = ease(map(p, .54, .70, 0, 1));
+
+      /* Envelope and card stay in place — stage slides up and takes them with it */
+      envWrap.style.transform = `translate(-50%, -50%)`;
+      envWrap.style.opacity   = 1;
+
+      /* Thin pink strip follows the stage bottom — covers any 1px seam artifact */
+      transFade.style.opacity   = (slideUp > 0 && slideUp < window.innerHeight) ? '1' : '0';
+      transFade.style.transform = `translateY(-${Math.round(slideUp)}px)`;
+    }
+
+    /* ── Always-running smooth loop — never starts/stops ── */
+    const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    let rawY    = window.scrollY;
+    let smoothY = rawY;
+
+    window.addEventListener('scroll', () => { rawY = window.scrollY; }, { passive: true });
+
+    /* Click on scroll hint → smooth scroll to content */
+    scrollH.addEventListener('click', () => {
+      const target = slideStartY() + window.innerHeight;
+      window.scrollTo({ top: target, behavior: 'smooth' });
+    });
+    scrollH.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        const target = slideStartY() + window.innerHeight;
+        window.scrollTo({ top: target, behavior: 'smooth' });
+      }
+    });
+
+    (function loop() {
+      /* Touch: follow native scroll exactly (already smooth on mobile)
+         Desktop: lerp toward target — lower factor = smoother/dreamier */
+      smoothY += (rawY - smoothY) * (isTouch ? 1 : 0.07);
+      /* smoothY → inner animations (lerped)  |  rawY → stage position (instant) */
+      apply(smoothY, rawY);
+      requestAnimationFrame(loop);
+    })();
+
+    /* ── Content fade-up on scroll ── */
+
+    /* Stagger delays: each element within its section gets +130ms per sibling */
+    document.querySelectorAll('.sec-pink, .sec-white, .sec-green, .sec-surprise, .footer').forEach(sec => {
+      sec.querySelectorAll('.fade-up').forEach((el, i) => {
+        el.style.transitionDelay = (i * 130) + 'ms';
+      });
+    });
+
+    /* sec-pink elements are already in viewport when the stage slides away —
+       trigger them manually from apply() once the stage has moved enough.
+       All other sections: start observing only after the user reaches content
+       (prevents IntersectionObserver from firing on page load). */
+    const pinkItems  = document.querySelectorAll('.sec-pink .fade-up');
+    const otherItems = document.querySelectorAll('.sec-white .fade-up, .sec-green .fade-up, .sec-surprise .fade-up, .footer .fade-up');
+    let pinkTriggered  = false;
+    let ioStarted      = false;
+
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+    window._applyContent = function(slideUp) {
+      /* Pink section: reveal once stage has started sliding */
+      if (!pinkTriggered && slideUp > window.innerHeight * 0.04) {
+        pinkTriggered = true;
+        pinkItems.forEach(el => el.classList.add('visible'));
+      }
+      if (slideUp <= 0 && pinkTriggered) {
+        pinkTriggered = false;
+        pinkItems.forEach(el => el.classList.remove('visible'));
+      }
+
+      /* Other sections: start observing only when stage is half off-screen
+         so IntersectionObserver never fires while content is still hidden */
+      if (!ioStarted && slideUp > window.innerHeight * 0.3) {
+        ioStarted = true;
+        otherItems.forEach(el => io.observe(el));
+      }
+      /* If user scrolls all the way back, unobserve and reset */
+      if (ioStarted && slideUp <= 0) {
+        ioStarted = false;
+        otherItems.forEach(el => {
+          io.unobserve(el);
+          el.classList.remove('visible');
+        });
+      }
+    };
+  </script>
+</body>
+</html>
